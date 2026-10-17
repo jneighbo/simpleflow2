@@ -8,3 +8,5 @@
 @media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important;scroll-behavior:auto!important}}
 
 .rotate{transform:rotate(180deg)}
+
+.endpoint-stack{min-width:145px;max-width:245px}.endpoint-name,.endpoint-as{display:block;max-width:245px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-family:var(--sans);font-size:9px;margin-top:5px;line-height:1.4}.endpoint-name{color:#537562}.endpoint-as{color:#899585;font-size:8px}.biflow-leg{display:block;font-size:8px;color:#7d937d;margin-top:6px;white-space:nowrap}.enrichment-notice{margin-bottom:16px}.enrichment-notice strong{font-size:11px;color:#4c704e;display:block;margin-bottom:2px}.enrichment-notice span{display:block}.drawer .info-row{align-items:flex-start}.drawer .info-row span:last-child{max-width:62%;overflow-wrap:anywhere;line-height:1.6}.flow-route>div{overflow-wrap:anywhere;min-width:0}.paired-flow{margin-top:12px}.drawer{width:490px}.ip-cell>.endpoint-name,.ip-cell>.endpoint-as{margin-left:27px}@media(max-width:650px){.drawer{width:100%}}

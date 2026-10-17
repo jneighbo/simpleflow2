@@ -14,14 +14,19 @@ import sqlite3
 import struct
 import threading
 import time
+import uuid
 from collections import Counter
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import parse_qs, urlparse
 
+from enrichment import Enricher
+
 ROOT = Path(__file__).resolve().parent
 PROTOCOLS = {1: "ICMP", 6: "TCP", 17: "UDP", 47: "GRE", 50: "ESP", 58: "ICMPv6", 89: "OSPF"}
 SERVICES = {22: "SSH", 53: "DNS", 80: "HTTP", 123: "NTP", 161: "SNMP", 443: "HTTPS", 445: "SMB", 500: "IPsec", 993: "IMAPS", 1433: "MSSQL", 3306: "MySQL", 3389: "RDP", 5432: "PostgreSQL", 8080: "HTTP-alt", 8443: "HTTPS-alt"}
+REVERSE_PEN = 29305  # RFC 5103: reverse-direction standard information elements.
+ADDRESS_FIELDS = (8, 12, 15, 27, 28, 62)
 
 
 class DecodeError(ValueError):
@@ -103,7 +108,7 @@ class Decoder:
                 cursor = 0
                 minimum = sum(1 if length == 65535 else length for _, length, _ in fields)
                 while len(payload) - cursor >= minimum:
-                    values = {}
+                    values, reverse = {}, {}
                     for field, size, enterprise in fields:
                         if size == 65535:
                             if cursor >= len(payload):
@@ -119,13 +124,18 @@ class Decoder:
                             raise DecodeError("Truncated data record")
                         value = payload[cursor:cursor + size]
                         cursor += size
-                        if not enterprise:
-                            values[field] = value if field in (8, 12, 15, 27, 28, 62) else number(value)
+                        if not enterprise or enterprise == REVERSE_PEN:
+                            target = reverse if enterprise else values
+                            target[field] = value if field in ADDRESS_FIELDS else number(value)
                     total_records += 1
                     if not options:
                         record = self._record(values, version, domain, now, export_time=seconds)
                         if record["src"] != "—" and record["dst"] != "—":
-                            records.append(record)
+                            record["templateId"] = set_id
+                            if reverse:
+                                records.extend(self._biflow(values, reverse, record, version, domain, now, seconds))
+                            else:
+                                records.append(record)
                         else:
                             self.stats["non_flow_records"] += 1
                     else:
@@ -134,6 +144,34 @@ class Decoder:
                     raise DecodeError("Invalid data set padding")
         self._sequence(key, seq, 1 if version == 9 else total_records, uncertain and version == 10)
         return records
+
+    def _biflow(self, values, reverse, forward, version, domain, now, export_time):
+        """Normalize a wire Biflow into paired directions without duplicating counters.
+
+        Only endpoint keys and the protocol are shared. Routing metadata and
+        TCP/ToS counters are direction-specific and must not be copied from
+        forward to reverse. A shared observation interface is retained when
+        ingress and egress are identical, as in softflowd.
+        """
+        pair = uuid.uuid4().hex
+        forward.update(biflowLeg="forward", flowRecordId=pair)
+        reversed_values = {4: values.get(4, 0)}
+        for source, destination in ((8, 12), (27, 28), (7, 11)):
+            if source in values:
+                reversed_values[destination] = values[source]
+            if destination in values:
+                reversed_values[source] = values[destination]
+        if values.get(10) == values.get(14) and 10 in values:
+            reversed_values[10] = reversed_values[14] = values[10]
+        reversed_values.update(reverse)
+        backward = self._record(reversed_values, version, domain, now, export_time=export_time)
+        backward.update(biflowLeg="reverse", flowRecordId=pair, templateId=forward["templateId"])
+        # softflowd supplies one conversation lifetime unless reverse timestamps
+        # are explicitly present. Preserve it without presenting it as leg timing.
+        if backward["duration"] is None and forward["duration"] is not None:
+            backward["duration"] = forward["duration"]
+            forward["durationScope"] = backward["durationScope"] = "shared conversation"
+        return [forward, backward]
 
     def _templates(self, payload, key, version, options, now):
         cursor = 0
@@ -219,6 +257,10 @@ class Decoder:
             duration = max(0, v[153] - v[152]) / 1000
         elif 150 in v and 151 in v:
             duration = max(0, v[151] - v[150])
+        elif 154 in v and 155 in v:
+            duration = max(0, v[155] - v[154]) / (1 << 32)
+        elif 156 in v and 157 in v:
+            duration = max(0, v[157] - v[156]) / (1 << 32)
         elif 21 in v and 22 in v:
             duration = ((v[21] - v[22]) & 0xFFFFFFFF) / 1000
         proto, sport, dport = v.get(4, 0), v.get(7, 0), v.get(11, 0)
@@ -231,10 +273,11 @@ class Decoder:
 
 
 class Collector:
-    def __init__(self, exporter, db_path, internal_networks, name="edge-router-01", port=2055, retention=24):
+    def __init__(self, exporter, db_path, internal_networks, name="edge-router-01", port=2055, retention=24, enricher=None):
         self.exporter, self.name, self.port = exporter, name, port
         self.networks = [ipaddress.ip_network(n.strip()) for n in internal_networks.split(",")]
         self.retention = retention
+        self.enricher = enricher
         self.decoder, self.lock = Decoder(), threading.RLock()
         self.stats = Counter()
         self.last_seen = None
@@ -273,6 +316,10 @@ class Collector:
                     self.last_cleanup = now
                 self.db.commit()
                 self.stats["records"] += len(records)
+                biflows = {r["flowRecordId"] for r in records if r.get("biflowLeg")}
+                self.stats["biflow_records"] += len(biflows)
+                self.stats["wire_flow_records"] += len(records) - len(biflows)
+                self.stats["reverse_directions"] += sum(r.get("biflowLeg") == "reverse" for r in records)
                 self.versions.add(number(data[:2]))
                 self.last_seen = now
             except (ValueError, struct.error, sqlite3.Error) as exc:
@@ -286,11 +333,17 @@ class Collector:
             rows = self.db.execute("SELECT id,data FROM flows WHERE received>=? ORDER BY received DESC LIMIT 250000", (now-minutes*60,)).fetchall()
             records = [dict(json.loads(data), id=ident) for ident, data in rows]
             stats = dict(self.stats + self.decoder.stats)
-            templates = [dict(id=k[1], version=k[0][1], domain=k[0][2], fields=len(v[0]), options=v[1], age=round(now-v[2])) for k,v in self.decoder.templates.items() if now-v[2]<1800]
+            templates = [dict(id=k[1], version=k[0][1], domain=k[0][2], fields=len(v[0]), reverseFields=sum(f[2] == REVERSE_PEN for f in v[0]), options=v[1], age=round(now-v[2])) for k,v in self.decoder.templates.items() if now-v[2]<1800]
             exporter = dict(name=self.name, ip=self.exporter, port=self.port, lastSeen=self.last_seen, versions=sorted(self.versions),
                 status="healthy" if self.last_seen and now-self.last_seen<60 else "idle", uptime=now-self.started, stats=stats, templates=templates, lastError=self.last_error,
                 retentionHours=self.retention, networks=[str(n) for n in self.networks])
-        return summarize(records, minutes, now, exporter)
+        result = summarize(records, minutes, now, exporter)
+        if self.enricher:
+            addresses = list(dict.fromkeys(ip for r in result["flows"] for ip in (r["src"], r["dst"])))
+            addresses.extend(t["name"] for t in result["talkers"])
+            result["enrichment"] = self.enricher.snapshot(addresses)
+            result["enrichmentStatus"] = self.enricher.status()
+        return result
 
 
 def summarize(records, minutes, now, exporter):
@@ -299,7 +352,9 @@ def summarize(records, minutes, now, exporter):
     series = [dict(time=(now-minutes*60+i*width)*1000, ingress=0, egress=0, internal=0, flows=0) for i in range(bins)]
     protocols, apps, sources, interfaces = {}, {}, {}, {}
     total_bytes = total_packets = 0
+    wire_records = set()
     for r in records:
+        wire_records.add(r.get("flowRecordId") or ("legacy", r["id"]))
         total_bytes += r["bytes"]
         total_packets += r["packets"]
         bucket = min(bins-1, max(0, int((r["received"]-(now-minutes*60))/width)))
@@ -317,7 +372,7 @@ def summarize(records, minutes, now, exporter):
             item["flows"] += 1
     sort = lambda mapping: sorted(mapping.values(), key=lambda r:r["bytes"], reverse=True)
     return dict(mode="live", now=now*1000, minutes=minutes, exporter=exporter, series=series,
-        totals=dict(bytes=total_bytes, packets=total_packets, flows=len(records), sources=len(sources), bps=total_bytes*8/(minutes*60), pps=total_packets/(minutes*60)),
+        totals=dict(bytes=total_bytes, packets=total_packets, flows=len(records), exportRecords=len(wire_records), sources=len(sources), bps=total_bytes*8/(minutes*60), pps=total_packets/(minutes*60)),
         protocols=sort(protocols), applications=sort(apps), talkers=sort(sources)[:25], interfaces=list(interfaces.values()),
         flows=records[:2000], flowLimit=2000, flowTruncated=len(records)>2000,
         measurement="Raw counters, grouped by collector receipt time. Application labels are inferred from ports.")
@@ -335,12 +390,15 @@ def run():
     p.add_argument("--db", default=str(ROOT / ".data" / "flows.sqlite3"))
     p.add_argument("--retention-hours", type=int, default=24)
     p.add_argument("--demo", action="store_true", help="Serve the demonstration dashboard")
+    p.add_argument("--no-rdns", action="store_true", help="Disable background reverse DNS lookups")
+    p.add_argument("--no-asn", action="store_true", help="Disable public-IP origin ASN lookups via RIPEstat")
     args = p.parse_args()
     ipaddress.IPv4Address(args.exporter)
     if not 1 <= args.retention_hours <= 720:
         p.error("retention-hours must be 1–720")
     Path(args.db).parent.mkdir(parents=True, exist_ok=True)
-    collector = Collector(args.exporter, args.db, args.networks, args.name, args.udp_port, args.retention_hours)
+    enrichment = Enricher(str(Path(args.db).with_name("enrichment.sqlite3")), rdns=not args.no_rdns, asn=not args.no_asn)
+    collector = Collector(args.exporter, args.db, args.networks, args.name, args.udp_port, args.retention_hours, enrichment)
     udp = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     udp.setsockopt(socket.SOL_SOCKET, socket.SO_RCVBUF, 4*1024*1024)
     udp.bind((args.udp_host, args.udp_port))
@@ -395,6 +453,7 @@ def run():
         udp.close()
         server.server_close()
         collector.db.close()
+        enrichment.close()
 
 
 if __name__ == "__main__":
