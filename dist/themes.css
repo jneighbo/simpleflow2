@@ -1,13 +1,14 @@
-:root{color-scheme:light}
+:root{color-scheme:light;--select-arrow:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='m4 6 4 4 4-4' fill='none' stroke='%237b8982' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E")}
 .theme-control{display:flex;align-items:center;gap:8px;white-space:nowrap}
 .theme-control>span{font-size:10px;color:var(--muted)}
-.theme-control select{min-height:32px;padding:5px 8px;border:1px solid var(--line);border-radius:6px;background:var(--panel);color:var(--ink);font-size:11px;cursor:pointer}
+.theme-control select{min-width:90px;border:1px solid var(--line);border-radius:6px;background:var(--panel);color:var(--ink);font-size:11px;cursor:pointer}
 
 :root[data-theme="dark"]{
  color-scheme:dark;
  --bg:#111b19;--panel:#192622;--ink:#e0ece5;--muted:#a1b3a8;
  --line:#30423b;--green:#8ed5ae;--mint:#254d3c;--dark:#10221b;
  --surface-soft:#1e3028;--surface-hover:#263d31;
+ --select-arrow:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='m4 6 4 4 4-4' fill='none' stroke='%23a1b3a8' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
 }
 [data-theme="dark"] .topbar{background:#15211d}
 [data-theme="dark"] :is(.metric,.diagnostic-stat,.drawer,.modal,.btn,.range-select,.filter-select,.page-controls button){background:var(--panel);color:var(--ink);border-color:var(--line)}
@@ -43,9 +44,21 @@
 [data-theme="dark"] .search-box input::placeholder{color:var(--muted);opacity:1}
 [data-theme="dark"] #toast{background:#b3dcba;color:#162b1c}
 
+/* Keep the native menu and keyboard behavior, with consistent control geometry. */
+:root select{
+ -webkit-appearance:none;appearance:none;box-sizing:border-box;
+ height:32px;min-height:32px;margin:0;padding:0 32px 0 11px;
+ line-height:normal;vertical-align:middle;cursor:pointer;
+}
+:root[data-theme] select{
+ background-image:var(--select-arrow);background-repeat:no-repeat;
+ background-position:right 10px center;background-size:12px 12px;
+}
+
 @media(max-width:650px){
  .theme-control>span,.topbar-right .user-avatar,.topbar-right>.icon-btn,.breadcrumbs>span,.breadcrumbs>svg{display:none}
- .theme-control select{max-width:86px;font-size:10px}
+ .theme-control select{min-width:84px;max-width:86px;font-size:10px}
  .topbar-right{gap:8px}
 }
 @media(max-width:390px){.topbar-right>.tag{display:none}}
+@media(forced-colors:active){:root[data-theme] select{appearance:auto;background-image:none;padding-right:8px}}
