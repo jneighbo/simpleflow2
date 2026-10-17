@@ -33,6 +33,8 @@ Alternatively add `?demo=1` to a local dashboard URL. Demo mode is visibly label
 
 ## Views
 
+Use the **Theme** selector in the top bar to choose Light, Dark, or System. Your choice is saved in this browser and applies across all views. System follows your operating system’s appearance.
+
 - **Overview:** average throughput, peak receipt-bucket bandwidth, flow-direction and exported-record counts, bytes, packets, source counts, interactive traffic charts, protocol mix, top source addresses, and inferred services. Click protocols, services, or talkers to filter the explorer.
 - **Flow explorer:** IP/hostname/port/protocol/origin-AS/organization search, protocol/direction/service filters, byte sorting, pagination, CSV export, and a detailed record drawer.
 - **Interfaces:** exported input/output ifIndex and observed average ingress/egress rates. Capacity, device interface names, and operational status require SNMP and are not collected. Friendly interface names in the demo are illustrative.

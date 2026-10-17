@@ -1,0 +1,51 @@
+:root{color-scheme:light}
+.theme-control{display:flex;align-items:center;gap:8px;white-space:nowrap}
+.theme-control>span{font-size:10px;color:var(--muted)}
+.theme-control select{min-height:32px;padding:5px 8px;border:1px solid var(--line);border-radius:6px;background:var(--panel);color:var(--ink);font-size:11px;cursor:pointer}
+
+:root[data-theme="dark"]{
+ color-scheme:dark;
+ --bg:#111b19;--panel:#192622;--ink:#e0ece5;--muted:#a1b3a8;
+ --line:#30423b;--green:#8ed5ae;--mint:#254d3c;--dark:#10221b;
+ --surface-soft:#1e3028;--surface-hover:#263d31;
+}
+[data-theme="dark"] .topbar{background:#15211d}
+[data-theme="dark"] :is(.metric,.diagnostic-stat,.drawer,.modal,.btn,.range-select,.filter-select,.page-controls button){background:var(--panel);color:var(--ink);border-color:var(--line)}
+[data-theme="dark"] :is(.btn:hover,.icon-btn:hover,tbody tr.clickable:hover){background:var(--surface-hover)}
+[data-theme="dark"] .btn.primary{background:#9ad5b2;color:#143021;border-color:#9ad5b2}
+[data-theme="dark"] .btn.primary:hover{background:#b4e5c7}
+[data-theme="dark"] :is(thead,.segmented,.search-box,.modal-footer,.status-strip,.notice,.flow-route){background:var(--surface-soft);border-color:var(--line);color:var(--muted)}
+[data-theme="dark"] .segmented button{color:var(--muted)}
+[data-theme="dark"] .segmented button.active{background:#34513e;color:#e8f4eb;box-shadow:none}
+[data-theme="dark"] td{color:#bdcfc2;border-color:#293a32}
+[data-theme="dark"] :is(.breadcrumbs strong,.status-strip strong,.ip-cell,.legend strong,.chart-bottom strong,.protocol-row .pct,.interface-split strong,.enrichment-notice strong,.setup-body h3,.modal-body h3,.empty h3){color:#d6e8d8}
+[data-theme="dark"] :is(.breadcrumbs,.icon-btn,.metric-label,.metric-value span,.metric-foot,.panel-head p,.legend,.chart-bottom,.chart-bottom .right,.donut-center span,.protocol-row .bytes,th,.host-label,.rank,.table-foot,.app-bar-label .mono,.app-bar-label small,.apps-note,.endpoint small,.tcp-flags,.page-footer,.empty,.info-row span:first-child,.setup-body,.interface-body .speed span,.interface-split,.diagnostic-stat>span,.diagnostic-stat small,.drawer-body h3,.flow-route small,.modal-body,.modal-footer,.flow-count,.updated,.swatch-legend,.endpoint-as,.biflow-leg){color:var(--muted)}
+[data-theme="dark"] :is(.metric-foot .change,.endpoint-name,.panel-link,.modal-body a,.protocol-row:hover){color:#9ad5b2}
+[data-theme="dark"] .metric-label>svg{color:var(--muted)}
+[data-theme="dark"] .tag{background:#2c3e32;color:#c0d2c1}
+[data-theme="dark"] .tag.green{background:#233f2f;color:#a4dbb0}
+[data-theme="dark"] .tag.amber{background:#44391f;color:#e8cc89}
+[data-theme="dark"] .tag.purple{background:#373045;color:#d0bde8}
+[data-theme="dark"] .tag.blue{background:#263a4d;color:#afd0f0}
+[data-theme="dark"] :is(.notice.warning,.alert-line,.disconnected){background:#3b3220;color:#e3c78b}
+[data-theme="dark"] .user-avatar{background:#34513e;color:#d8ecd8;border-color:var(--panel)}
+[data-theme="dark"] :is(.bar-track,.app-track,.protocol-mini){background:#2c3e32}
+[data-theme="dark"] .protocol-mini{color:#b9cfb9}
+[data-theme="dark"] .status-strip .separator{background:var(--line)}
+[data-theme="dark"] .chart-grid{stroke:var(--line)}
+[data-theme="dark"] .chart-axis{fill:var(--muted)}
+[data-theme="dark"] .donut-wrap svg>circle:first-child{stroke:#2c3e32}
+[data-theme="dark"] .chart-tip{background:#304e3a;color:#eff9ed;box-shadow:0 4px 16px #0005}
+[data-theme="dark"] .chart-tip small{color:#c0d5c2}
+[data-theme="dark"] .setup-code{background:#101d16;color:#bcdac4}
+[data-theme="dark"] :is(.drawer-backdrop,.modal-backdrop){background:#050e0ac0}
+[data-theme="dark"] .loading-screen{color:var(--muted)}
+[data-theme="dark"] .search-box input::placeholder{color:var(--muted);opacity:1}
+[data-theme="dark"] #toast{background:#b3dcba;color:#162b1c}
+
+@media(max-width:650px){
+ .theme-control>span,.topbar-right .user-avatar,.topbar-right>.icon-btn,.breadcrumbs>span,.breadcrumbs>svg{display:none}
+ .theme-control select{max-width:86px;font-size:10px}
+ .topbar-right{gap:8px}
+}
+@media(max-width:390px){.topbar-right>.tag{display:none}}
