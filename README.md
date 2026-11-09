@@ -4,10 +4,27 @@ A single-exporter NetFlow collector with a responsive web dashboard. Python 3.10
 
 The private hosted site is a **simulated demonstration**. Real UDP collection and data storage run on your machine. The hosted demo never receives your network telemetry.
 
+## Screenshots
+
+Both screenshots use simulated traffic and illustrative endpoint names in the dark theme.
+
+### Overview
+
+Throughput, flow counts, traffic trends, and protocol distribution at a glance.
+
+![SimpleFlow overview with traffic metrics, a bandwidth chart, and protocol distribution](docs/screenshots/overview.png)
+
+### Diagnostics
+
+Collector health, export integrity counters, and template visibility.
+
+![SimpleFlow diagnostics with accepted datagrams, decoded flows, sequence gaps, and template counters](docs/screenshots/diagnostics.png)
+
 ## Start collecting
 
 ```sh
-cd simpleflow
+git clone https://github.com/jneighbo/simpleflow2.git
+cd simpleflow2
 python3 collector.py --exporter 10.10.0.1 --name edge-router-01 --networks 10.10.0.0/16
 ```
 
