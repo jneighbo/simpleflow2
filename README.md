@@ -12,13 +12,13 @@ Both screenshots use simulated traffic and illustrative endpoint names in the da
 
 Throughput, flow counts, traffic trends, and protocol distribution at a glance.
 
-![SimpleFlow overview with traffic metrics, a bandwidth chart, and protocol distribution](docs/screenshots/overview.png)
+![SimpleFlow overview with traffic metrics, a bandwidth chart, and protocol distribution](docs/screenshots/overview.jpg)
 
 ### Diagnostics
 
 Collector health, export integrity counters, and template visibility.
 
-![SimpleFlow diagnostics with accepted datagrams, decoded flows, sequence gaps, and template counters](docs/screenshots/diagnostics.png)
+![SimpleFlow diagnostics with accepted datagrams, decoded flows, sequence gaps, and template counters](docs/screenshots/diagnostics.jpg)
 
 ## Start collecting
 
